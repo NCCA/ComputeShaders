@@ -6,6 +6,7 @@
 #include <ngl/Light.h>
 #include <ngl/Text.h>
 #include <QOpenGLWindow>
+#include <QElapsedTimer>
 #include <QTimer>
 //----------------------------------------------------------------------------------------------------------------------
 /// @file NGLScene.h
@@ -104,10 +105,14 @@ private:
   GLuint m_velocityBufferID;
   GLuint m_positionBufferID;
   GLuint m_attractorBufferID;
-  const size_t c_numParticles=600000;
-  const size_t c_numAttractors=8;
+  const size_t c_numParticles=1000000;
+  const size_t c_numAttractors=4;
   int m_attractorUpdateTimer;
   float m_dt=0.4f;
+  QElapsedTimer m_elapsedTimer;
+  std::vector<ngl::Vec3> m_attractors;
+  ngl::Mat4 m_view;
+  ngl::Mat4 m_projection;
 
 
 };

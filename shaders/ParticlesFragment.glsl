@@ -20,5 +20,5 @@ void main()
   {
     fragColour = mix(vec4(0.0,0.5,1.0,1.0), vec4(0.6,0.05,0.0,1.0), color);
   }
-
+  //fragColour=vec4(1.0);
 }

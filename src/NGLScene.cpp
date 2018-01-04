@@ -5,6 +5,7 @@
 #include <ngl/NGLInit.h>
 #include <ngl/NGLStream.h>
 #include <ngl/Random.h>
+#include <ngl/Transformation.h>
 #include <ngl/ShaderLib.h>
 
 constexpr auto ComputeShader="ComputeShader";
@@ -27,6 +28,8 @@ void NGLScene::resizeGL( int _w, int _h )
 {
   m_win.width  = static_cast<int>( _w * devicePixelRatio() );
   m_win.height = static_cast<int>( _h * devicePixelRatio() );
+  m_projection=ngl::perspective(45.0f,float(m_win.width)/m_win.height,0.5f,100.0f);
+
 }
 
 
@@ -78,7 +81,23 @@ void NGLScene::initializeGL()
   shader->use(ComputeShader);
   createComputeBuffers();
   startTimer(10);
-  m_attractorUpdateTimer=startTimer(100);
+  m_attractorUpdateTimer=startTimer(800);
+  m_elapsedTimer.start();
+  ngl::VAOPrimitives::instance()->createSphere("sphere",0.2f,10.0f);
+  (*shader)["nglDiffuseShader"]->use();
+
+  shader->setUniform("Colour",1.0f,1.0f,1.0f,1.0f);
+  shader->setUniform("lightPos",0.0f,0.0f,1.0f);
+  shader->setUniform("lightDiffuse",1.0f,1.0f,1.0f,1.0f);
+  ngl::Mat3 normalMatrix;
+  shader->setUniform("normalMatrix",normalMatrix);
+
+
+  m_view=ngl::lookAt(ngl::Vec3(25,25,25),ngl::Vec3::zero(),ngl::Vec3::up());
+
+  m_projection=ngl::perspective(45.0f,float(width())/height(),0.5f,100.0f);
+
+
 
 }
 
@@ -90,10 +109,10 @@ void NGLScene::createComputeBuffers()
   ngl::Random *rng=ngl::Random::instance();
   for(auto &p : pos)
   {
-    p.m_x=rng->randomNumber(10);
-    p.m_y=rng->randomNumber(10);
-    p.m_z=rng->randomNumber(10);
-    p.m_w=rng->randomPositiveNumber(1.0f);
+    p.m_x=rng->randomNumber(40);
+    p.m_y=rng->randomNumber(40);
+    p.m_z=rng->randomNumber(40);
+    p.m_w=rng->randomPositiveNumber(1.0f)+0.1f;
   }
 
   glGenBuffers(1, &m_positionBufferID);
@@ -104,22 +123,22 @@ void NGLScene::createComputeBuffers()
   std::vector<ngl::Vec3> vel(c_numParticles);
   for(auto &v : vel)
   {
-    v.m_x=rng->randomNumber(0.5f);
-    v.m_y=rng->randomNumber(0.5f);
-    v.m_z=rng->randomNumber(0.5f);
+    v.m_x=0.001f+rng->randomNumber(0.5f);
+    v.m_y=0.001f+rng->randomNumber(0.5f);
+    v.m_z=0.001f+rng->randomNumber(0.5f);
   }
   glGenBuffers(1, &m_velocityBufferID);
   glBindBuffer(GL_ARRAY_BUFFER, m_velocityBufferID);
   glBufferData(GL_ARRAY_BUFFER, vel.size() * sizeof(ngl::Vec3), &vel[0].m_x, GL_DYNAMIC_COPY);
 
-  std::vector<ngl::Vec3> attractors(c_numAttractors);
-  for(auto &a : attractors)
+  m_attractors.resize(c_numAttractors);
+  for(auto &a : m_attractors)
   {
     a=rng->getRandomPoint(20,20,20);
   }
   glGenBuffers(1, &m_attractorBufferID);
   glBindBuffer(GL_ARRAY_BUFFER, m_attractorBufferID);
-  glBufferData(GL_ARRAY_BUFFER, attractors.size() * sizeof(ngl::Vec3), &attractors[0].m_x, GL_DYNAMIC_COPY);
+  glBufferData(GL_ARRAY_BUFFER, m_attractors.size() * sizeof(ngl::Vec3), &m_attractors[0].m_x, GL_DYNAMIC_COPY);
 
   glBindVertexArray(0);
 }
@@ -161,7 +180,10 @@ void NGLScene::paintGL()
 
   glBindVertexArray(m_vao);
   shader->use(ComputeShader);
+  m_dt=m_elapsedTimer.elapsed()/60.0f;
+  m_elapsedTimer.restart();
   shader->setUniform("dt",m_dt);
+  std::cout<<m_dt<<'\n';
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_positionBufferID);
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_velocityBufferID);
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_attractorBufferID);
@@ -171,9 +193,7 @@ void NGLScene::paintGL()
 
 
   shader->use(ParticleShader);
-  ngl::Mat4 MVP= ngl::perspective(45.0f,float(width())/height(),0.5f,100.0f) *
-                 ngl::lookAt(ngl::Vec3(25,25,25),ngl::Vec3::zero(),ngl::Vec3::up()) *
-                 m_mouseGlobalTX;
+  ngl::Mat4 MVP= m_projection * m_view * m_mouseGlobalTX;
   shader->setUniform("MVP",MVP);
 
   glBindBuffer (GL_ARRAY_BUFFER, m_positionBufferID);
@@ -181,28 +201,51 @@ void NGLScene::paintGL()
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE,0, 0);
   glDrawArrays(GL_POINTS, 0, c_numParticles);
 
+  glEnable(GL_CULL_FACE);
+  shader->use("nglDiffuseShader");
+  ngl::Transformation tx;
+  for(auto p : m_attractors)
+  {
+    tx.setPosition(p);
+    MVP= m_projection * m_view * m_mouseGlobalTX  * tx.getMatrix();
+    shader->setUniform("MVP",MVP);
+    ngl::VAOPrimitives::instance()->draw("sphere");
+  }
+
+
+
+
+
 }
 
 
 void NGLScene::timerEvent(QTimerEvent *_event)
 {
-  if(_event->timerId()== m_attractorUpdateTimer)
+ if(_event->timerId()== m_attractorUpdateTimer)
   {
 
     ngl::Random *rng=ngl::Random::instance();
+    static float d=0.0f;
 
-    std::vector<ngl::Vec3> attractors(c_numAttractors);
-    for(auto &a : attractors)
+    for(auto &a : m_attractors)
     {
       //a=rng->getRandomPoint(10,10,10);
-      a.m_x=sinf(0.5f)*rng->randomPositiveNumber(5);
-      a.m_y=cosf(0.5f)*rng->randomPositiveNumber(5);
-      a.m_z=tanf(0.5f);
+//      float dt=m_elapsedTimer.elapsed()/60.0f;
+//      a.m_x=sinf(dt)*rng->randomPositiveNumber(60);
+//      a.m_y=cosf(dt)*rng->randomNumber(20);
+//      a.m_z=tanf(dt);
+      a.m_x = sinf(ngl::radians(d)) * rng->randomPositiveNumber(20);
+      a.m_y = cosf(ngl::radians(d)) * rng->randomPositiveNumber(20);
+      a.m_z = tanf(ngl::radians(d));
 
+
+      //a.m_z=sinf(dt)*rng->randomPositiveNumber(10); //0.0f;//tanf(0.5f);
+      std::cout<<a<<'\n';
     }
+    d+=1.0f;
     glGenBuffers(1, &m_attractorBufferID);
     glBindBuffer(GL_ARRAY_BUFFER, m_attractorBufferID);
-    glBufferData(GL_ARRAY_BUFFER, attractors.size() * sizeof(ngl::Vec3), &attractors[0].m_x, GL_DYNAMIC_COPY);
+    glBufferData(GL_ARRAY_BUFFER, m_attractors.size() * sizeof(ngl::Vec3), &m_attractors[0].m_x, GL_DYNAMIC_COPY);
   }
   update();
 }
@@ -243,14 +286,14 @@ void NGLScene::keyPressEvent( QKeyEvent* _event )
       m_win.spinXFace=0;
       m_win.spinYFace=0;
       m_modelPos.set(ngl::Vec3::zero());
-      m_dt=0.5f;
+     // m_dt=0.5f;
     break;
 
     case Qt::Key_Up :
-      m_dt+=0.01f;
+      //m_dt+=0.01f;
     break;
   case Qt::Key_Down :
-    m_dt-=0.01f;
+    //m_dt-=0.01f;
   break;
 
 
