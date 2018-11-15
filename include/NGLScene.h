@@ -1,9 +1,7 @@
 #ifndef NGLSCENE_H_
 #define NGLSCENE_H_
 #include "WindowParams.h"
-#include <ngl/Camera.h>
-#include <ngl/Colour.h>
-#include <ngl/Light.h>
+#include <ngl/Vec3.h>
 #include <ngl/Text.h>
 #include <QOpenGLWindow>
 #include <QElapsedTimer>
@@ -33,7 +31,7 @@ public:
   //----------------------------------------------------------------------------------------------------------------------
   /// @brief dtor must close down ngl and release OpenGL resources
   //----------------------------------------------------------------------------------------------------------------------
-  ~NGLScene();
+  ~NGLScene() override;
   //----------------------------------------------------------------------------------------------------------------------
   /// @brief the initialize class is called once when the window is created and we have a valid GL context
   /// use this to setup any default GL stuff
