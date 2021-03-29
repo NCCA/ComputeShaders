@@ -37,60 +37,56 @@ void NGLScene::initializeGL()
 {
   // we must call that first before any other GL commands to load and link the
   // gl commands from the lib, if that is not done program will crash
-  ngl::NGLInit::instance();
+  ngl::NGLInit::initialize();
   glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ); //  Background
   // enable depth testing for drawing
   glEnable( GL_DEPTH_TEST );
-// enable multisampling for smoother drawing
-#ifndef USINGIOS_
+
   glEnable( GL_MULTISAMPLE );
-#endif
-  // now to load the shader and set the values
-  // grab an instance of shader manager
-  ngl::ShaderLib* shader = ngl::ShaderLib::instance();
+  
   // create the shader program
-  shader->createShaderProgram( ParticleShader );
+  ngl::ShaderLib::createShaderProgram( ParticleShader );
   // now we are going to create empty shaders for Frag and Vert
   constexpr auto vertexShader  = "ComputeVertex";
   constexpr auto fragShader    = "ComputeFragment";
 
-  shader->attachShader( vertexShader, ngl::ShaderType::VERTEX );
-  shader->attachShader( fragShader, ngl::ShaderType::FRAGMENT );
+  ngl::ShaderLib::attachShader( vertexShader, ngl::ShaderType::VERTEX );
+  ngl::ShaderLib::attachShader( fragShader, ngl::ShaderType::FRAGMENT );
   // attach the source
-  shader->loadShaderSource( vertexShader, "shaders/ParticlesVertex.glsl" );
-  shader->loadShaderSource( fragShader, "shaders/ParticlesFragment.glsl" );
+  ngl::ShaderLib::loadShaderSource( vertexShader, "shaders/ParticlesVertex.glsl" );
+  ngl::ShaderLib::loadShaderSource( fragShader, "shaders/ParticlesFragment.glsl" );
 
   // compile the shaders
-  shader->compileShader( vertexShader );
-  shader->compileShader( fragShader );
+  ngl::ShaderLib::compileShader( vertexShader );
+  ngl::ShaderLib::compileShader( fragShader );
   // add them to the program
-  shader->attachShaderToProgram( ParticleShader, vertexShader );
-  shader->attachShaderToProgram( ParticleShader, fragShader );
-  shader->linkProgramObject(ParticleShader);
-  shader->use(ParticleShader);
+  ngl::ShaderLib::attachShaderToProgram( ParticleShader, vertexShader );
+  ngl::ShaderLib::attachShaderToProgram( ParticleShader, fragShader );
+  ngl::ShaderLib::linkProgramObject(ParticleShader);
+  ngl::ShaderLib::use(ParticleShader);
 
 
   constexpr auto compute = "Compute";
 
-  shader->createShaderProgram( ComputeShader );
-  shader->attachShader( compute, ngl::ShaderType::COMPUTE );
-  shader->loadShaderSource( compute, "shaders/ParticlesCompute.glsl" );
-  shader->compileShader( compute );
-  shader->attachShaderToProgram( ComputeShader, compute );
-  shader->linkProgramObject(ComputeShader);
-  shader->use(ComputeShader);
+  ngl::ShaderLib::createShaderProgram( ComputeShader );
+  ngl::ShaderLib::attachShader( compute, ngl::ShaderType::COMPUTE );
+  ngl::ShaderLib::loadShaderSource( compute, "shaders/ParticlesCompute.glsl" );
+  ngl::ShaderLib::compileShader( compute );
+  ngl::ShaderLib::attachShaderToProgram( ComputeShader, compute );
+  ngl::ShaderLib::linkProgramObject(ComputeShader);
+  ngl::ShaderLib::use(ComputeShader);
   createComputeBuffers();
   startTimer(10);
   m_attractorUpdateTimer=startTimer(800);
   m_elapsedTimer.start();
-  ngl::VAOPrimitives::instance()->createSphere("sphere",0.2f,10.0f);
-  (*shader)["nglDiffuseShader"]->use();
+  ngl::VAOPrimitives::createSphere("sphere",0.2f,10.0f);
+  ngl::ShaderLib::use("nglDiffuseShader");
 
-  shader->setUniform("Colour",1.0f,1.0f,1.0f,1.0f);
-  shader->setUniform("lightPos",0.0f,0.0f,1.0f);
-  shader->setUniform("lightDiffuse",1.0f,1.0f,1.0f,1.0f);
+  ngl::ShaderLib::setUniform("Colour",1.0f,1.0f,1.0f,1.0f);
+  ngl::ShaderLib::setUniform("lightPos",0.0f,0.0f,1.0f);
+  ngl::ShaderLib::setUniform("lightDiffuse",1.0f,1.0f,1.0f,1.0f);
   ngl::Mat3 normalMatrix;
-  shader->setUniform("normalMatrix",normalMatrix);
+  ngl::ShaderLib::setUniform("normalMatrix",normalMatrix);
 
 
   m_view=ngl::lookAt(ngl::Vec3(25,25,25),ngl::Vec3::zero(),ngl::Vec3::up());
@@ -106,13 +102,12 @@ void NGLScene::createComputeBuffers()
   glGenVertexArrays(1,&m_vao);
   glBindVertexArray(m_vao);
   std::vector<ngl::Vec4> pos(c_numParticles);
-  ngl::Random *rng=ngl::Random::instance();
   for(auto &p : pos)
   {
-    p.m_x=rng->randomNumber(40);
-    p.m_y=rng->randomNumber(40);
-    p.m_z=rng->randomNumber(40);
-    p.m_w=rng->randomPositiveNumber(1.0f)+0.1f;
+    p.m_x=ngl::Random::randomNumber(40);
+    p.m_y=ngl::Random::randomNumber(40);
+    p.m_z=ngl::Random::randomNumber(40);
+    p.m_w=ngl::Random::randomPositiveNumber(1.0f)+0.1f;
   }
 
   glGenBuffers(1, &m_positionBufferID);
@@ -123,9 +118,9 @@ void NGLScene::createComputeBuffers()
   std::vector<ngl::Vec3> vel(c_numParticles);
   for(auto &v : vel)
   {
-    v.m_x=0.001f+rng->randomNumber(0.5f);
-    v.m_y=0.001f+rng->randomNumber(0.5f);
-    v.m_z=0.001f+rng->randomNumber(0.5f);
+    v.m_x=0.001f+ngl::Random::randomNumber(0.5f);
+    v.m_y=0.001f+ngl::Random::randomNumber(0.5f);
+    v.m_z=0.001f+ngl::Random::randomNumber(0.5f);
   }
   glGenBuffers(1, &m_velocityBufferID);
   glBindBuffer(GL_ARRAY_BUFFER, m_velocityBufferID);
@@ -134,7 +129,7 @@ void NGLScene::createComputeBuffers()
   m_attractors.resize(c_numAttractors);
   for(auto &a : m_attractors)
   {
-    a=rng->getRandomPoint(20,20,20);
+    a=ngl::Random::getRandomPoint(20,20,20);
   }
   glGenBuffers(1, &m_attractorBufferID);
   glBindBuffer(GL_ARRAY_BUFFER, m_attractorBufferID);
@@ -147,7 +142,6 @@ void NGLScene::createComputeBuffers()
 
 void NGLScene::loadMatricesToShader()
 {
-  ngl::ShaderLib* shader = ngl::ShaderLib::instance();
 
 }
 
@@ -157,8 +151,6 @@ void NGLScene::paintGL()
   // clear the screen and depth buffer
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-  // grab an instance of the shader manager
-  ngl::ShaderLib* shader = ngl::ShaderLib::instance();
 
   // Rotation based on the mouse position for our global transform
   ngl::Mat4 rotX;
@@ -179,10 +171,10 @@ void NGLScene::paintGL()
   glDisable(GL_CULL_FACE);
 
   glBindVertexArray(m_vao);
-  shader->use(ComputeShader);
+  ngl::ShaderLib::use(ComputeShader);
   m_dt=m_elapsedTimer.elapsed()/60.0f;
   m_elapsedTimer.restart();
-  shader->setUniform("dt",m_dt);
+  ngl::ShaderLib::setUniform("dt",m_dt);
   std::cout<<m_dt<<'\n';
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_positionBufferID);
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_velocityBufferID);
@@ -192,9 +184,9 @@ void NGLScene::paintGL()
   glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 
-  shader->use(ParticleShader);
+  ngl::ShaderLib::use(ParticleShader);
   ngl::Mat4 MVP= m_projection * m_view * m_mouseGlobalTX;
-  shader->setUniform("MVP",MVP);
+  ngl::ShaderLib::setUniform("MVP",MVP);
 
   glBindBuffer (GL_ARRAY_BUFFER, m_positionBufferID);
   glEnableVertexAttribArray(0);
@@ -202,17 +194,15 @@ void NGLScene::paintGL()
   glDrawArrays(GL_POINTS, 0, c_numParticles);
 
   glEnable(GL_CULL_FACE);
-  shader->use("nglDiffuseShader");
+  ngl::ShaderLib::use("nglDiffuseShader");
   ngl::Transformation tx;
   for(auto p : m_attractors)
   {
     tx.setPosition(p);
     MVP= m_projection * m_view * m_mouseGlobalTX  * tx.getMatrix();
-    shader->setUniform("MVP",MVP);
-    ngl::VAOPrimitives::instance()->draw("sphere");
+    ngl::ShaderLib::setUniform("MVP",MVP);
+    ngl::VAOPrimitives::draw("sphere");
   }
-
-
 
 
 
@@ -224,22 +214,21 @@ void NGLScene::timerEvent(QTimerEvent *_event)
  if(_event->timerId()== m_attractorUpdateTimer)
   {
 
-    ngl::Random *rng=ngl::Random::instance();
     static float d=0.0f;
 
     for(auto &a : m_attractors)
     {
-      //a=rng->getRandomPoint(10,10,10);
+      //a=ngl::Random::getRandomPoint(10,10,10);
 //      float dt=m_elapsedTimer.elapsed()/60.0f;
-//      a.m_x=sinf(dt)*rng->randomPositiveNumber(60);
-//      a.m_y=cosf(dt)*rng->randomNumber(20);
+//      a.m_x=sinf(dt)*ngl::Random::randomPositiveNumber(60);
+//      a.m_y=cosf(dt)*ngl::Random::randomNumber(20);
 //      a.m_z=tanf(dt);
-      a.m_x = sinf(ngl::radians(d)) * rng->randomPositiveNumber(20);
-      a.m_y = cosf(ngl::radians(d)) * rng->randomPositiveNumber(20);
+      a.m_x = sinf(ngl::radians(d)) * ngl::Random::randomPositiveNumber(20);
+      a.m_y = cosf(ngl::radians(d)) * ngl::Random::randomPositiveNumber(20);
       a.m_z = tanf(ngl::radians(d));
 
 
-      //a.m_z=sinf(dt)*rng->randomPositiveNumber(10); //0.0f;//tanf(0.5f);
+      //a.m_z=sinf(dt)*ngl::Random::randomPositiveNumber(10); //0.0f;//tanf(0.5f);
       std::cout<<a<<'\n';
     }
     d+=1.0f;
